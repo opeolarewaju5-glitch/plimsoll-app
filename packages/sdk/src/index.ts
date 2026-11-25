@@ -1,3 +1,4 @@
+export * from "./cache";
 export * from "./types";
 export * from "./format";
 export * from "./contract";

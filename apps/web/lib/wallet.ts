@@ -52,7 +52,12 @@ async function loadKit(): Promise<{ kit: Kit; options: WalletOption[] }> {
     import("@creit.tech/stellar-wallets-kit/modules/hana"),
   ]);
 
-  const definitions = [
+  const definitions: Array<{
+    name: string;
+    hint: string;
+    installUrl: string;
+    module: ModuleInterface;
+  }> = [
     {
       name: "Freighter",
       hint: "Browser extension",
@@ -84,6 +89,27 @@ async function loadKit(): Promise<{ kit: Kit; options: WalletOption[] }> {
       module: new hana.HanaModule() as ModuleInterface,
     },
   ];
+
+  // Ledger hardware wallet: requires WebUSB or WebHID; silently skipped when
+  // the browser or OS does not expose the transport.
+  const ledgerResult = await import("@creit.tech/stellar-wallets-kit/modules/ledger").catch(
+    () => null,
+  );
+  if (ledgerResult) {
+    try {
+      const { LedgerModule } = ledgerResult as {
+        LedgerModule: new () => ModuleInterface;
+      };
+      definitions.push({
+        name: "Ledger",
+        hint: "Hardware wallet via USB/HID",
+        installUrl: "https://www.ledger.com/",
+        module: new LedgerModule(),
+      });
+    } catch {
+      // Transport not available in this browser/OS — skip silently.
+    }
+  }
 
   const options = await Promise.all(
     definitions.map(async (definition) => ({
@@ -313,7 +339,7 @@ function pickWallet(options: WalletOption[]): Promise<WalletOption | null> {
     const foot = document.createElement("p");
     foot.className = "sub wallet-dialog-foot";
     foot.textContent =
-      "Freighter, xBull, Albedo, Lobstr and Hana are supported. Plimsoll never sees your keys; you approve every signature in the wallet.";
+      "Freighter, xBull, Albedo, Lobstr, Hana and Ledger hardware wallets are supported. Plimsoll never sees your keys; you approve every signature in the wallet.";
     body.append(foot);
 
     dialog.append(head, body);
